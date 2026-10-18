@@ -1,0 +1,6 @@
+{
+  "name": "PT Innodesk — Corporate Website",
+  "description": "Situs korporat resmi PT Innodesk dengan identitas monokromatik modern, menghadirkan solusi teknologi terintegrasi dan Internet of Things (IoT) untuk efisiensi bisnis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
