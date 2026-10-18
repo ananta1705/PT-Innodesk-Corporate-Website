@@ -1,13 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, Compass, Cpu, BarChart3, Layers } from 'lucide-react';
 import { HERO_CONTENT } from '../data/siteContent';
 import { HeroIsometricGraphic } from '../components/HeroIsometricGraphic';
+import { getAllSiteContent } from '../services/siteContentService';
 
 interface HeroSectionProps {
   onNavigate: (sectionId: string) => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
+  const [heroData, setHeroData] = useState({
+    eyebrow: HERO_CONTENT.eyebrow,
+    headlineLine1: HERO_CONTENT.headlineLine1,
+    headlineHighlight: HERO_CONTENT.headlineHighlight,
+    description: HERO_CONTENT.description,
+    primaryCta: HERO_CONTENT.primaryCta,
+    secondaryCta: HERO_CONTENT.secondaryCta,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDynamicHero() {
+      try {
+        const res = await getAllSiteContent();
+        if (isMounted && res.data?.hero) {
+          setHeroData(res.data.hero);
+        }
+      } catch (e) {
+        // Fallback gracefully
+      }
+    }
+    loadDynamicHero();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const indicatorIcons = [Cpu, BarChart3, Layers];
 
   return (
@@ -30,17 +58,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
           {/* Left Column: Headline, Copy, CTAs & Three Approach Indicators */}
           <div className="lg:col-span-6">
             <p className="text-[#3D8BFF] text-xs font-bold uppercase tracking-[0.14em] mb-3.5">
-              {HERO_CONTENT.eyebrow}
+              {heroData.eyebrow}
             </p>
 
             <h1 className="text-3xl sm:text-4xl lg:text-[48px] font-extrabold tracking-tight leading-[1.15] text-white text-balance">
-              {HERO_CONTENT.headlineLine1}
+              {heroData.headlineLine1}
               <br />
-              <span className="text-[#3D8BFF]">{HERO_CONTENT.headlineHighlight}</span>
+              <span className="text-[#3D8BFF]">{heroData.headlineHighlight}</span>
             </h1>
 
             <p className="text-slate-300 text-sm sm:text-[15.5px] leading-[1.65] mt-4 mb-8 max-w-[500px]">
-              {HERO_CONTENT.description}
+              {heroData.description}
             </p>
 
             {/* Primary & Secondary CTAs */}
@@ -53,7 +81,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
                 }}
                 className="inline-flex items-center justify-center gap-2 bg-[#1769F5] hover:bg-[#1256CE] text-white text-xs sm:text-sm font-semibold px-6 py-3.5 rounded-lg shadow-lg shadow-[#1769F5]/30 transition-colors duration-200 min-h-[44px]"
               >
-                <span>{HERO_CONTENT.primaryCta}</span>
+                <span>{heroData.primaryCta}</span>
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </a>
 
@@ -66,7 +94,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigate }) => {
                 className="inline-flex items-center justify-center gap-2.5 bg-white/5 hover:bg-white/10 border border-white/30 hover:border-[#3D8BFF] text-white text-xs sm:text-sm font-medium px-6 py-3.5 rounded-lg transition-colors duration-200 min-h-[44px]"
               >
                 <Compass className="w-4 h-4 text-[#3D8BFF]" aria-hidden="true" />
-                <span>{HERO_CONTENT.secondaryCta}</span>
+                <span>{heroData.secondaryCta}</span>
               </a>
             </div>
 

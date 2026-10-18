@@ -1,7 +1,8 @@
-import React from 'react';
-import { Cpu, Activity, Code2, GitMerge, Compass, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Cpu, Activity, Code2, GitMerge, Compass, ArrowRight, AlertCircle } from 'lucide-react';
 import { ServiceItem } from '../types';
-import { SERVICES_CONTENT, SERVICES_DATA } from '../data/siteContent';
+import { SERVICES_CONTENT } from '../data/siteContent';
+import { getPublishedServices } from '../services/servicesService';
 
 interface ServicesSectionProps {
   onOpenServiceDetail: (service: ServiceItem) => void;
@@ -12,6 +13,39 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
   onOpenServiceDetail,
   onOpenAllServices,
 }) => {
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchServices() {
+      setIsLoading(true);
+      try {
+        const res = await getPublishedServices();
+        if (isMounted) {
+          setServices(res.data);
+          if (res.error) {
+            setError(res.error);
+          }
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err.message || 'Gagal memuat layanan');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    fetchServices();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const renderIcon = (iconType: ServiceItem['icon']) => {
     switch (iconType) {
       case 'iot':
@@ -24,6 +58,8 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         return <GitMerge className="w-6 h-6 text-[#1769F5]" strokeWidth={1.8} aria-hidden="true" />;
       case 'consulting':
         return <Compass className="w-6 h-6 text-[#1769F5]" strokeWidth={1.8} aria-hidden="true" />;
+      default:
+        return <Cpu className="w-6 h-6 text-[#1769F5]" strokeWidth={1.8} aria-hidden="true" />;
     }
   };
 
@@ -58,41 +94,78 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
           </p>
         </div>
 
-        {/* 5 Service Cards Grid (1 col mobile, 2/3 tablet, 5 desktop) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-          {SERVICES_DATA.map((service) => (
-            <article
-              key={service.id}
-              className="bg-white rounded-xl p-6 shadow-[0_4px_20px_rgba(17,24,39,0.04)] hover:shadow-[0_10px_28px_rgba(23,105,245,0.1)] border border-[#E5EAF2] hover:border-[#3D8BFF]/50 transition-all duration-200 flex flex-col items-center text-center justify-between group"
-            >
-              <div className="flex flex-col items-center">
-                {/* Pale-Blue Circular Icon Container */}
-                <div className="w-14 h-14 rounded-full bg-[#EAF2FF] group-hover:bg-[#DBEAFE] flex items-center justify-center mb-4 transition-colors duration-200">
-                  {renderIcon(service.icon)}
+        {/* Loading State */}
+        {isLoading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-xl p-6 border border-[#E5EAF2] flex flex-col items-center animate-pulse min-h-[260px]"
+              >
+                <div className="w-14 h-14 rounded-full bg-[#EAF2FF] mb-4" />
+                <div className="h-4 bg-slate-200 rounded w-3/4 mb-3" />
+                <div className="h-3 bg-slate-100 rounded w-full mb-2" />
+                <div className="h-3 bg-slate-100 rounded w-4/5 mb-6" />
+                <div className="h-6 bg-slate-100 rounded w-1/2 mt-auto" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Error Notification */}
+        {error && !isLoading && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Memuat konten dari cadangan lokal (koneksi database: {error}).</span>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && services.length === 0 && (
+          <div className="bg-white rounded-xl p-10 border border-[#E5EAF2] text-center text-xs text-[#5F6B7A]">
+            Belum ada layanan yang dipublikasikan saat ini.
+          </div>
+        )}
+
+        {/* 5 Service Cards Grid */}
+        {!isLoading && services.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+            {services.map((service) => (
+              <article
+                key={service.id}
+                className="bg-white rounded-xl p-6 shadow-[0_4px_20px_rgba(17,24,39,0.04)] hover:shadow-[0_10px_28px_rgba(23,105,245,0.1)] border border-[#E5EAF2] hover:border-[#3D8BFF]/50 transition-all duration-200 flex flex-col items-center text-center justify-between group"
+              >
+                <div className="flex flex-col items-center">
+                  {/* Pale-Blue Circular Icon Container */}
+                  <div className="w-14 h-14 rounded-full bg-[#EAF2FF] group-hover:bg-[#DBEAFE] flex items-center justify-center mb-4 transition-colors duration-200">
+                    {renderIcon(service.icon)}
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-[15px] font-bold text-[#111827] group-hover:text-[#1769F5] leading-snug mb-2.5 transition-colors duration-200">
+                    {service.title}
+                  </h3>
+
+                  {/* Concise Description */}
+                  <p className="text-xs sm:text-[13px] text-[#5F6B7A] leading-relaxed mb-5">
+                    {service.shortDescription}
+                  </p>
                 </div>
 
-                {/* Title */}
-                <h3 className="text-[15px] font-bold text-[#111827] group-hover:text-[#1769F5] leading-snug mb-2.5 transition-colors duration-200">
-                  {service.title}
-                </h3>
-
-                {/* Concise Description */}
-                <p className="text-xs sm:text-[13px] text-[#5F6B7A] leading-relaxed mb-5">
-                  {service.shortDescription}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onOpenServiceDetail(service)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1769F5] hover:text-[#1256CE] py-1.5 px-3 rounded-md hover:bg-[#EAF2FF]/60 transition-colors cursor-pointer min-h-[38px]"
-              >
-                <span>Pelajari Layanan</span>
-                <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
-            </article>
-          ))}
-        </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenServiceDetail(service)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1769F5] hover:text-[#1256CE] py-1.5 px-3 rounded-md hover:bg-[#EAF2FF]/60 transition-colors cursor-pointer min-h-[38px]"
+                >
+                  <span>Pelajari Layanan</span>
+                  <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
 
         {/* Bottom CTA Button */}
         <div className="mt-10 text-center">

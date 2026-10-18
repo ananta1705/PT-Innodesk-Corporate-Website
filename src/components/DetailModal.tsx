@@ -14,6 +14,7 @@ interface DetailModalProps {
   onClose: () => void;
   onSelectServiceForContact: (serviceTitle?: string) => void;
   onSelectServiceDetail?: (service: ServiceItem) => void;
+  servicesList?: ServiceItem[];
 }
 
 export const DetailModal: React.FC<DetailModalProps> = ({
@@ -21,6 +22,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   onClose,
   onSelectServiceForContact,
   onSelectServiceDetail,
+  servicesList = SERVICES_DATA,
 }) => {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -163,7 +165,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
             </p>
 
             <div className="space-y-3 mb-6">
-              {SERVICES_DATA.map((svc) => (
+              {servicesList.map((svc) => (
                 <div
                   key={svc.id}
                   className="p-4 rounded-xl bg-[#F7F9FC] border border-[#E5EAF2] hover:border-[#1769F5] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"

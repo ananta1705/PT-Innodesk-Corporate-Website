@@ -1,8 +1,11 @@
-import React from 'react';
-import { ArrowUp, ArrowRight, Phone, Mail, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowUp, ArrowRight, Phone, Mail, MapPin, Shield } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { COMPANY_INFO, NAV_LINKS, SERVICES_DATA } from '../data/siteContent';
 import { ServiceItem } from '../types';
+import { getAllSiteContent } from '../services/siteContentService';
+import { getPublishedServices } from '../services/servicesService';
+import { Link } from 'react-router-dom';
 
 interface FooterProps {
   onNavigate: (sectionId: string) => void;
@@ -11,7 +14,47 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectService }) => {
   const currentYear = new Date().getFullYear();
-  const { verifiedContact } = COMPANY_INFO;
+  const [footerInfo, setFooterInfo] = useState({
+    name: COMPANY_INFO.name,
+    tagline: COMPANY_INFO.tagline,
+    shortSummary: COMPANY_INFO.shortSummary,
+  });
+  const [verifiedContact, setVerifiedContact] = useState(COMPANY_INFO.verifiedContact);
+  const [servicesList, setServicesList] = useState<ServiceItem[]>(SERVICES_DATA);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchDynamicData() {
+      try {
+        const [contentRes, servicesRes] = await Promise.all([
+          getAllSiteContent(),
+          getPublishedServices(),
+        ]);
+
+        if (isMounted) {
+          if (contentRes.data) {
+            setFooterInfo({
+              name: contentRes.data.footer.companyName || COMPANY_INFO.name,
+              tagline: contentRes.data.footer.tagline || COMPANY_INFO.tagline,
+              shortSummary: contentRes.data.footer.shortSummary || COMPANY_INFO.shortSummary,
+            });
+            setVerifiedContact(contentRes.data.contact_info);
+          }
+          if (servicesRes.data && servicesRes.data.length > 0) {
+            setServicesList(servicesRes.data);
+          }
+        }
+      } catch (err) {
+        // Silently use defaults
+      }
+    }
+
+    fetchDynamicData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const hasVerifiedContact = Boolean(
     verifiedContact.email || verifiedContact.phone || verifiedContact.address
   );
@@ -39,7 +82,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectService }) =
               <BrandLogo theme="light" />
             </a>
             <p className="text-xs sm:text-[13px] text-[#5F6B7A] leading-relaxed mt-3.5 max-w-sm">
-              {COMPANY_INFO.shortSummary}
+              {footerInfo.shortSummary}
             </p>
           </div>
 
@@ -69,7 +112,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectService }) =
               Area Solusi IoT
             </h3>
             <ul className="space-y-2.5 text-xs sm:text-[13px] text-[#5F6B7A]">
-              {SERVICES_DATA.map((service) => (
+              {servicesList.map((service) => (
                 <li key={service.id}>
                   <button
                     type="button"
@@ -128,10 +171,21 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectService }) =
           </div>
         </div>
 
-        {/* Bottom Copyright & Back to Top Row */}
+        {/* Bottom Copyright, Admin Link & Back to Top Row */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#5F6B7A]">
-          <div>
-            © {currentYear} {COMPANY_INFO.name}. Seluruh hak cipta dilindungi.
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              © {currentYear} {footerInfo.name}. Seluruh hak cipta dilindungi.
+            </span>
+            <span className="text-[#CBD5E1]">·</span>
+            <Link
+              to="/admin/login"
+              className="inline-flex items-center gap-1 text-[#5F6B7A] hover:text-[#1769F5] transition-colors"
+              title="Portal Administrator"
+            >
+              <Shield className="w-3.5 h-3.5 text-[#1769F5]" />
+              <span>Portal Admin</span>
+            </Link>
           </div>
 
           <button

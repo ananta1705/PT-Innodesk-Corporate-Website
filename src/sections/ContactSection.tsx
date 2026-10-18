@@ -10,6 +10,9 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import { CONTACT_SECTION_CONTENT, SERVICES_DATA } from '../data/siteContent';
+import { submitInquiry } from '../services/inquiriesService';
+import { getPublishedServices } from '../services/servicesService';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface ContactSectionProps {
   preselectedService: string;
@@ -45,9 +48,29 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     description: '',
   });
 
+  const [serviceOptions, setServiceOptions] = useState<string[]>(
+    SERVICES_DATA.map((s) => s.title)
+  );
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [submittedName, setSubmittedName] = useState<string>('');
+  const [submittedArea, setSubmittedArea] = useState<string>('');
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchServices() {
+      const res = await getPublishedServices();
+      if (isMounted && res.data && res.data.length > 0) {
+        setServiceOptions(res.data.map((s) => s.title));
+      }
+    }
+    fetchServices();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (preselectedService) {
@@ -82,19 +105,47 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittedSuccess(false);
+    setSubmissionError(null);
 
     if (!validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
+
+    try {
+      const res = await submitInquiry({
+        name: formData.name,
+        company: formData.company,
+        email: formData.email,
+        service_interest: formData.area,
+        message: formData.description,
+      });
+
+      if (res.success) {
+        setSubmittedName(formData.name);
+        setSubmittedArea(formData.area);
+        setSubmittedSuccess(true);
+        // Clear form after success per PRD
+        setFormData({
+          name: '',
+          company: '',
+          email: '',
+          area: '',
+          description: '',
+        });
+        setErrors({});
+      } else {
+        setSubmissionError(res.error || 'Gagal mengirim pesan. Silakan coba kembali.');
+      }
+    } catch (err: any) {
+      setSubmissionError(err.message || 'Terjadi gangguan saat menghubungi database.');
+    } finally {
       setIsSubmitting(false);
-      setSubmittedSuccess(true);
-    }, 400);
+    }
   };
 
   const handleReset = () => {
@@ -107,6 +158,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     });
     setErrors({});
     setSubmittedSuccess(false);
+    setSubmissionError(null);
     nameInputRef.current?.focus();
   };
 
@@ -147,56 +199,53 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
               </div>
             </div>
 
-            {/* Right Side: CTA Buttons */}
+            {/* Right Side: Dual CTAs */}
             <div className="flex flex-wrap items-center justify-center gap-3 shrink-0">
               <button
                 type="button"
                 onClick={focusInquiryForm}
-                className="inline-flex items-center justify-center gap-2 bg-[#1769F5] hover:bg-[#1256CE] text-white text-xs sm:text-[13px] font-semibold px-5 py-3 rounded-lg shadow-md shadow-[#1769F5]/30 transition-colors min-h-[44px] cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 bg-[#1769F5] hover:bg-[#1256CE] text-white text-xs sm:text-[13px] font-semibold px-5 py-3 rounded-lg shadow-md shadow-[#1769F5]/25 transition-colors cursor-pointer min-h-[44px]"
               >
                 <span>{CONTACT_SECTION_CONTENT.ctaStrip.primaryButton}</span>
                 <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
 
-              <a
-                href="#cara-kerja"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onNavigate('cara-kerja');
-                }}
-                className="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/25 hover:border-[#3D8BFF] text-white text-xs sm:text-[13px] font-semibold px-5 py-3 rounded-lg transition-colors min-h-[44px]"
+              <button
+                type="button"
+                onClick={() => onNavigate('cara-kerja')}
+                className="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/20 hover:border-white/40 text-white text-xs sm:text-[13px] font-medium px-5 py-3 rounded-lg transition-colors cursor-pointer min-h-[44px]"
               >
                 <span>{CONTACT_SECTION_CONTENT.ctaStrip.secondaryButton}</span>
-              </a>
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 4.10 CONTACT INQUIRY FORM */}
+      {/* 4.9 INQUIRY FORM SECTION */}
       <section id="formulir-diskusi" className="py-16 lg:py-22 bg-white">
         <div className="max-w-[1220px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
-            {/* Left Column: Consultation Context & Discussion Topics */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+            {/* Left Column: Contextual Guidance for Prospective Clients */}
             <div className="lg:col-span-5">
               <div className="inline-flex items-center gap-2 text-[#1769F5] text-xs font-bold uppercase tracking-[0.15em] mb-2">
                 <span>{CONTACT_SECTION_CONTENT.formSection.eyebrow}</span>
-                <span className="w-8 h-[1.5px] bg-[#1769F5]/45" aria-hidden="true" />
+                <span className="w-6 h-[1.5px] bg-[#1769F5]/45" aria-hidden="true" />
               </div>
 
-              <h2 className="text-2xl sm:text-3xl lg:text-[34px] font-extrabold text-[#111827] leading-[1.2] tracking-tight mb-4">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight leading-snug">
                 {CONTACT_SECTION_CONTENT.formSection.headingPrefix}
                 <span className="text-[#1769F5]">
                   {CONTACT_SECTION_CONTENT.formSection.headingHighlight}
                 </span>
               </h2>
 
-              <p className="text-sm sm:text-[15px] text-[#5F6B7A] leading-relaxed mb-8">
+              <p className="text-xs sm:text-sm text-[#5F6B7A] mt-3 leading-relaxed">
                 {CONTACT_SECTION_CONTENT.formSection.intro}
               </p>
 
-              {/* Topic Preparation Guide Card */}
-              <div className="p-6 rounded-2xl bg-[#F7F9FC] border border-[#E5EAF2] space-y-4">
+              {/* Three Suggested Consultation Discussion Topics */}
+              <div className="mt-8 space-y-4 pt-6 border-t border-[#E5EAF2]">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[#111827]">
                   Topik yang Dapat Didiskusikan
                 </h3>
@@ -242,28 +291,29 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
               </div>
             </div>
 
-            {/* Right Column: Validated Frontend-Only Inquiry Form */}
+            {/* Right Column: Validated Inquiry Form with Supabase Integration */}
             <div className="lg:col-span-7">
               <div className="bg-[#F7F9FC] rounded-2xl p-6 sm:p-8 border border-[#E5EAF2] shadow-[0_4px_20px_rgba(17,24,39,0.04)]">
-                {/* Accessible Demo Submission Notice */}
+                {/* Submission Success Notice */}
                 <div aria-live="polite">
                   {submittedSuccess && (
                     <div
                       role="status"
-                      className="mb-6 p-4 rounded-xl bg-[#EAF2FF] border border-[#1769F5]/30 text-[#111827] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-[#111827] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                     >
                       <div className="flex items-start gap-3">
                         <CheckCircle2
-                          className="w-5 h-5 text-[#1769F5] shrink-0 mt-0.5"
+                          className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5"
                           aria-hidden="true"
                         />
                         <div>
-                          <p className="text-xs sm:text-sm font-bold text-[#06112F]">
-                            {CONTACT_SECTION_CONTENT.formSection.demoNotice}
+                          <p className="text-xs sm:text-sm font-bold text-emerald-900">
+                            Pesan Konsultasi Anda Berhasil Terkirim!
                           </p>
-                          <p className="text-xs text-[#5F6B7A] mt-1">
-                            Rincian dari <strong>{formData.name}</strong> untuk area{' '}
-                            <strong>{formData.area}</strong> telah diverifikasi di browser.
+                          <p className="text-xs text-emerald-800 mt-1">
+                            Terima kasih <strong>{submittedName}</strong>. Rincian kebutuhan untuk{' '}
+                            <strong>{submittedArea}</strong> telah tercatat pada sistem kami. Tim PT
+                            Innodesk akan mempelajari dan menindaklanjuti.
                           </p>
                         </div>
                       </div>
@@ -272,14 +322,34 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                         onClick={handleReset}
                         className="self-start sm:self-center text-xs font-semibold text-[#1769F5] hover:underline whitespace-nowrap cursor-pointer"
                       >
-                        Reset Formulir
+                        Kirim Pesan Lain
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Submission Error Notice */}
+                  {submissionError && (
+                    <div
+                      role="alert"
+                      className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                        <span>{submissionError}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSubmissionError(null)}
+                        className="text-red-700 hover:text-red-900"
+                      >
+                        Tutup
                       </button>
                     </div>
                   )}
                 </div>
 
-                <form onSubmit={handleSubmit} noValidate className="space-y-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Nama lengkap (required) */}
                     <div>
                       <label
@@ -300,7 +370,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                           setFormData({ ...formData, name: e.target.value });
                           if (errors.name) setErrors({ ...errors, name: undefined });
                         }}
-                        placeholder="Masukkan nama lengkap Anda"
+                        placeholder="Contoh: Budi Santoso"
                         className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-lg text-[#111827] placeholder:text-[#5F6B7A]/60 transition-colors min-h-[44px] ${
                           errors.name
                             ? 'border-red-600 focus:outline-red-600'
@@ -319,34 +389,34 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                       )}
                     </div>
 
-                    {/* Nama perusahaan (optional) */}
+                    {/* Perusahaan / Organisasi (optional) */}
                     <div>
                       <label
                         htmlFor="inquiry-company"
                         className="block text-xs font-bold text-[#111827] mb-1.5"
                       >
-                        Nama perusahaan{' '}
-                        <span className="text-[#5F6B7A] font-normal">(Opsional)</span>
+                        Perusahaan / Organisasi{' '}
+                        <span className="text-[11px] text-[#5F6B7A] font-normal">(opsional)</span>
                       </label>
                       <input
                         id="inquiry-company"
                         type="text"
                         value={formData.company}
                         onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                        placeholder="Nama perusahaan atau organisasi"
-                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-[#E5EAF2] focus:border-[#1769F5] rounded-lg text-[#111827] placeholder:text-[#5F6B7A]/60 transition-colors min-h-[44px]"
+                        placeholder="Contoh: PT Perusahaan Anda"
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-[#E5EAF2] rounded-lg text-[#111827] placeholder:text-[#5F6B7A]/60 focus:border-[#1769F5] transition-colors min-h-[44px]"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    {/* Email (required) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Alamat email (required) */}
                     <div>
                       <label
                         htmlFor="inquiry-email"
                         className="block text-xs font-bold text-[#111827] mb-1.5"
                       >
-                        Email <span className="text-[#1769F5]">*</span>
+                        Alamat email <span className="text-[#1769F5]">*</span>
                       </label>
                       <input
                         id="inquiry-email"
@@ -403,9 +473,9 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                         }`}
                       >
                         <option value="">Pilih area kebutuhan IoT...</option>
-                        {SERVICES_DATA.map((svc) => (
-                          <option key={svc.id} value={svc.title}>
-                            {svc.title}
+                        {serviceOptions.map((title, idx) => (
+                          <option key={idx} value={title}>
+                            {title}
                           </option>
                         ))}
                       </select>
@@ -464,7 +534,9 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
                     <span className="text-xs text-[#5F6B7A]">
-                      Mode demo frontend: tidak ada data yang dikirim ke server eksternal.
+                      {isSupabaseConfigured()
+                        ? 'Terkoneksi ke Supabase Data API (Protected by RLS).'
+                        : 'Mode simulasi frontend sebelum kredensial Supabase terisi.'}
                     </span>
                     <button
                       type="submit"
@@ -474,7 +546,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                       {isSubmitting ? (
                         <>
                           <RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />
-                          <span>Memvalidasi...</span>
+                          <span>Mengirim...</span>
                         </>
                       ) : (
                         <>
